@@ -3,3 +3,4 @@ build/
 dist/
 vimeo-dl.spec
 .DS_Store
+*.mp4

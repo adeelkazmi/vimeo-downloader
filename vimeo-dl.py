@@ -1,4 +1,3 @@
-# Retrieve the MP4 link from a Vimeo Video
 from bs4 import BeautifulSoup
 import requests
 from requests.exceptions import ConnectionError
@@ -12,7 +11,7 @@ from colorama import init,Fore,Style
 init(autoreset=True)
 
 # Argument Parser
-parser = argparse.ArgumentParser( description="Retrieve MP4 link from a Vimeo Video" )
+parser = argparse.ArgumentParser( description="Download MP4 video from a Vimeo Video")
 parser.add_argument( "url", type=str, help="The Vimeo URL" )
 parser.add_argument( "-q", "--quality", type=str, default="720p", help="Quality level of video (default: 720p)" )
 parser.add_argument( "-a", "--all", dest="displayAll", action="store_true", help="Displays all available quality levels")
@@ -44,7 +43,6 @@ except ConnectionError:
 	print( "ERROR: \"" + url + "\" is not a valid Vimeo URL" )
 	quit()
 
-soup = BeautifulSoup(response.text, 'lxml')
 
 # Function to ensure we do not overwrite any existing files
 def GetFileName(title):
@@ -53,13 +51,16 @@ def GetFileName(title):
 
 	# Add (#) appropriately if file already exists
 	if os.path.exists(filePath):
-		for i in range(1,1000):
+		for i in range(1,9999):
 			filePath=title+" ("+str(i)+").mp4"
 			if not os.path.exists(filePath):
 				break
 	return filePath
 
-# Parse for the MP4 URLs in the script section
+# Load the response into BeautifulSoup
+soup = BeautifulSoup(response.text, 'lxml')
+
+# ...and parse for the MP4 URLs in the script section
 scripts = soup.findAll('script')
 for script in scripts:
 	config = re.search(r"var config = (.*?);", script.string)
@@ -67,19 +68,27 @@ for script in scripts:
 		configJson = json.loads(config.group(1))
 		title = configJson["video"]["title"]
 		print( Style.BRIGHT + "Title: " + Fore.GREEN + title)
+		videoSaved=False
 		for link in configJson["request"]["files"]["progressive"]:
 			if displayAll:
 				print("  " + link["quality"])
 			elif link["quality"] == quality:
 				videoUrl = link["url"]
+				print("  Quality: " + Fore.BLUE + quality)
 				print("  Downloading from " + Fore.BLUE + videoUrl)
-				fileName=GetFileName(title)
+				fileName=GetFileName(title + " [" + quality + "]")
 				print("  Saving to " + Fore.GREEN + fileName)
 				video = requests.get(videoUrl)
 				with open(fileName, 'wb') as f:
 					f.write(video.content)
+					videoSaved=True
 				break
 		if displayAll:
 			print("Use " + Fore.GREEN + "-q QUALITY" + Fore.RESET +
 					" or " + Fore.GREEN + "--quality QUALITY" + Fore.RESET +
 					" to download the quality level required")
+		elif not videoSaved:
+			print(Fore.RED + "  ERROR: " + Fore.RESET + " Quality level \""+ quality + "\" not available")
+			print("Use " + Fore.GREEN + "-a" + Fore.RESET +
+					" or " + Fore.GREEN + "--all" + Fore.RESET +
+					" to view all available quality levels")
