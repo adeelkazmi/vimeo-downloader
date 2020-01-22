@@ -5,6 +5,11 @@ from requests.exceptions import ConnectionError
 import re
 import argparse
 import json
+import os.path
+from colorama import init,Fore,Style
+
+# Initialise terminal colors (using colorama)
+init(autoreset=True)
 
 # Argument Parser
 parser = argparse.ArgumentParser( description="Retrieve MP4 link from a Vimeo Video" )
@@ -41,15 +46,40 @@ except ConnectionError:
 
 soup = BeautifulSoup(response.text, 'lxml')
 
+# Function to ensure we do not overwrite any existing files
+def GetFileName(title):
+	title = re.sub(r'[\\/\:*"<>\|\.%\$\^&£]', '', title) # strip illegal characters from title
+	filePath=title+".mp4"
+
+	# Add (#) appropriately if file already exists
+	if os.path.exists(filePath):
+		for i in range(1,1000):
+			filePath=title+" ("+str(i)+").mp4"
+			if not os.path.exists(filePath):
+				break
+	return filePath
+
 # Parse for the MP4 URLs in the script section
 scripts = soup.findAll('script')
 for script in scripts:
 	config = re.search(r"var config = (.*?);", script.string)
 	if config:
-		links = json.loads(config.group(1))
-		for link in links["request"]["files"]["progressive"]:
+		configJson = json.loads(config.group(1))
+		title = configJson["video"]["title"]
+		print( Style.BRIGHT + "Title: " + Fore.GREEN + title)
+		for link in configJson["request"]["files"]["progressive"]:
 			if displayAll:
-				print(link["quality"])
+				print("  " + link["quality"])
 			elif link["quality"] == quality:
-				print(link["url"])
-
+				videoUrl = link["url"]
+				print("  Downloading from " + Fore.BLUE + videoUrl)
+				fileName=GetFileName(title)
+				print("  Saving to " + Fore.GREEN + fileName)
+				video = requests.get(videoUrl)
+				with open(fileName, 'wb') as f:
+					f.write(video.content)
+				break
+		if displayAll:
+			print("Use " + Fore.GREEN + "-q QUALITY" + Fore.RESET +
+					" or " + Fore.GREEN + "--quality QUALITY" + Fore.RESET +
+					" to download the quality level required")
