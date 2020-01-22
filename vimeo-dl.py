@@ -73,7 +73,11 @@ for script in scripts:
 			if displayAll:
 				print("  " + link["quality"])
 			elif link["quality"] == quality:
-				videoUrl = link["url"]
+				extractedUrl = link["url"]
+				# Sometimes the URL has some redundant characters after the extension
+				# This will just remove it
+				trim = extractedUrl.rfind(".mp4")
+				videoUrl = extractedUrl[:trim] + ".mp4"
 				print("  Quality: " + Fore.BLUE + quality)
 				print("  Downloading from " + Fore.BLUE + videoUrl)
 				fileName=GetFileName(title + " [" + quality + "]")
